@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build Your Own Symphony</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: auto;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 1000px;
+            background-color: #f4f4f4;
+            cursor: default;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .grid-item {
+            position: relative;
+        }
+        .grid-item img {
+            border: 2px solid black;
+            width: 70%;
+            height: auto;
+            border-radius: 5px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
+            cursor: default;
+        }
+        .grid-item img:hover {
+            transform: scale(1.02);
+            cursor: pointer;
+        }
+        .grid-item a {
+            text-decoration: none;
+            color: #000;
+            font-weight: bold;
+            display: block;
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-container">
+        <div class="grid-item">
+            <a href="page-i.html">
+                <img src="page-i.png" alt="Image I">
+            </a>
+        </div>
+        <div class="grid-item">
+            <a href="page-ii.html">
+                <img src="page-ii.png" alt="Image II">
+            </a>
+        </div>
+        <div class="grid-item">
+            <a href="page-iii.html">
+                <img src="page-iii.png" alt="Image III">
+            </a>
+        </div>
+        <div class="grid-item">
+            <a href="page-iv.html">
+                <img src="page-iv.png" alt="Image IV">
+            </a>
+        </div>
+    </div>
+</body>
+</html>

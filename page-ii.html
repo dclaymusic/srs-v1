@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Movement II</title>
+  <style>
+    body {
+      margin: auto;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      margin: auto;
+      background-color: #DCEAEA;
+      width: 800px; /* Maintain the same on-screen dimensions */
+      height: 600px;
+      cursor: pointer;
+      border-radius: 5px;
+      border: 2px solid black;
+    }
+    p { text-align: center; user-select: none;}
+    
+
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <p>Press A or D to move Snoopy. Press W to jump. <br>Click anywhere in the level to add or remove a platform.</p>
+  <a href="index.html">
+    <p>Back</p>
+  </a>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Set canvas resolution to double the dimensions for higher pixel density
+    const canvasWidth = 800;
+    const canvasHeight = 600;
+    canvas.width = canvasWidth * 2;
+    canvas.height = canvasHeight * 2;
+    ctx.scale(2, 2); // Scale drawing operations to fit the doubled resolution
+
+
+    const cols = 8;
+    const rows = 9;
+    const cellWidth = canvasWidth / cols;
+    const cellHeight = canvasHeight / rows;
+
+    const gravity = 0.75;
+    const friction = 0.8;
+
+    const player = {
+      x: 0,
+      y: (rows - 2) * cellHeight, // Start on the second-to-last row
+      width: 60,
+      height: 96,
+      dx: 0,
+      dy: 0,
+      speed: 2.5,
+      jumpPower: -14,
+      onGround: false,
+      imageAir: new Image(),
+      imageGround: new Image(),
+    };
+
+    // Load player images
+    player.imageAir.src = 'player_air.png'; // Image for when the player is in the air
+    player.imageGround.src = 'player_ground.png'; // Image for when the player is on the ground
+
+    // Load row images
+    const rowImages = [];
+    for (let i = 0; i < rows; i++) {
+      const img = new Image();
+      img.src = `row_${i + 1}.png`; // Each row has its own image (e.g., row_1.png, row_2.png, ...)
+      rowImages.push(img);
+    }
+
+    // Ground row image options
+    const g1 = new Image();
+    g1.src = 'g_1.png'; // blank
+
+    const g2 = new Image();
+    g2.src = 'g_2.png'; // circle
+
+    const g3 = new Image();
+    g3.src = 'g_3.png'; // square
+
+    const g4 = new Image();
+    g4.src = 'g_4.png'; // triangle
+
+    const groundImageOptions = [g1, g2, g3, g4]; // All available ground images
+
+    // Specify which ground image to use for each column in each map
+    const groundMaps = [
+      [g1, g1, g1, g1, g1, g1, g1, g1], // Map 1
+      [g1, g1, g1, g1, g1, g1, g1, g1], // Map 2
+      [g1, g1, g1, g1, g1, g1, g1, g1], // Map 3 (default)
+    ];
+
+
+    // Predefined maps with platforms at given column-row pairs
+    const maps = [
+      [[1, 5], [2, 3], [3, 3], [5, 5], [6, 6], [7, 7]], // Map 1: shifted up by 1 row
+      [[1, 6], [2, 5], [3, 3], [4, 5], [5, 6]],          // Map 2: shifted up by 1 row
+      []                                                  // Map 3 (blank)
+    ];
+
+    let currentMapIndex = 0;
+    let platforms = []; // Array to store the current platforms for the active map
+
+    // Function to generate platforms from a list of column-row pairs
+    function generatePlatforms(map) {
+      const newPlatforms = Array.from({ length: rows }, () => Array(cols).fill(false));
+
+      map.forEach(([col, row]) => {
+        if (row < rows - 1 && col < cols) {
+          newPlatforms[row][col] = true;
+        }
+      });
+
+      // Ensure row 9 (ground row) is completely filled
+      for (let col = 0; col < cols; col++) {
+        newPlatforms[rows - 1][col] = true;
+      }
+
+      return newPlatforms;
+    }
+
+    // Initialize the platforms for the first map
+    platforms = generatePlatforms(maps[currentMapIndex]);
+
+    const keys = {
+      a: false,
+      d: false,
+      w: false,
+      space: false
+    };
+
+    function drawPlayer() {
+      const image = player.onGround ? player.imageGround : player.imageAir;
+      ctx.drawImage(image, player.x, player.y, player.width, player.height);
+    }
+    
+    function drawPlatforms() {
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        if (platforms[row][col]) {
+          const platformX = col * cellWidth;
+          const platformY = row * cellHeight;
+
+          if (row === rows - 1) {
+            // Ground row: draw specified image for the column
+            ctx.globalAlpha = 1.0; // Always fully opaque
+            ctx.drawImage(
+              groundMaps[currentMapIndex][col], // Use ground image for this column
+              platformX,
+              platformY,
+              cellWidth,
+              cellHeight
+            );
+          } else {
+            // Other rows: set alpha dynamically
+            ctx.globalAlpha =
+              player.onGround &&
+              player.y + player.height === platformY &&
+              player.x + player.width > platformX &&
+              player.x < platformX + cellWidth
+                ? 1.0 // Fully opaque if the player is standing
+                : 0.7; // Default transparency
+
+            // Draw the platform image
+            ctx.drawImage(
+              rowImages[row], // Use the image for the current row
+              platformX,
+              platformY,
+              cellWidth,
+              cellHeight
+            );
+
+            // Add a black border if the player is standing on this platform
+            if (
+              player.onGround &&
+              player.y + player.height === platformY &&
+              player.x + player.width > platformX &&
+              player.x < platformX + cellWidth
+            ) {
+              ctx.globalAlpha = 1.0; // Ensure border is fully opaque
+              ctx.strokeStyle = 'black'; // Black border color
+              ctx.lineWidth = 3; // 3px border width
+              ctx.strokeRect(platformX, platformY, cellWidth, cellHeight); // Draw border
+            }
+          }
+        }
+      }
+    }
+
+    // Reset alpha to default
+    ctx.globalAlpha = 1.0;
+  }
+
+
+
+  function checkCollisions() {
+    player.onGround = false;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        if (platforms[row][col]) {
+          const platformX = col * cellWidth;
+          const platformY = row * cellHeight;
+
+          if (
+            player.x < platformX + cellWidth &&
+            player.x + player.width > platformX &&
+            player.y < platformY + cellHeight &&
+            player.y + player.height > platformY
+          ) {
+            if (player.dy > 0) {
+              player.y = platformY - player.height;
+              player.dy = 0;
+              player.onGround = true;
+            }
+          }
+        }
+      }
+    }
+  }
+
+    function handleInput() {
+      if (keys.a) player.dx = -player.speed;
+      else if (keys.d) player.dx = player.speed;
+      else player.dx *= friction;
+
+      if (keys.space && player.onGround) {
+        player.dy = player.jumpPower;
+        player.onGround = false;
+      }
+    }
+
+    function applyPhysics() {
+      player.dy += gravity;
+      player.x += player.dx;
+      player.y += player.dy;
+
+      // Prevent falling through the bottom
+      if (player.y + player.height > canvasHeight) {
+        player.y = canvasHeight - player.height;
+        player.dy = 0;
+        player.onGround = true;
+      }
+
+      // Prevent moving out of bounds on the left
+      if (player.x < 0) player.x = 0;
+
+      // Prevent moving out of bounds on the right
+      if (player.x + player.width > canvasWidth) {
+        player.x = canvasWidth - player.width;
+        switchToNextMap(); // Switch to the next map when crossing the rightmost edge
+      }
+    }
+
+    function switchToNextMap() {
+      currentMapIndex = (currentMapIndex + 1) % maps.length;
+      platforms = generatePlatforms(maps[currentMapIndex]);
+      player.x = 0; // Reset player position to the left
+    }
+
+    function update() {
+      handleInput();
+      applyPhysics();
+      checkCollisions();
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+      drawPlayer();
+      drawPlatforms();
+    }
+
+    function gameLoop() {
+      update();
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Toggle a platform at a specific mouse position
+    function togglePlatform(x, y) {
+      const col = Math.floor(x / cellWidth);
+      const row = Math.floor(y / cellHeight);
+
+      // Prevent toggling platforms on the ground row
+      if (row < rows - 1) {
+        platforms[row][col] = !platforms[row][col];
+      }
+    }
+
+    // Add click event listener to toggle platforms
+  // Cycle through ground images when clicking on the ground row
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const col = Math.floor(mouseX / cellWidth);
+    const row = Math.floor(mouseY / cellHeight);
+
+    if (row === rows - 1) {
+      // If clicking on the ground row, cycle through ground images
+      const currentImage = groundMaps[currentMapIndex][col];
+      const nextImageIndex = (groundImageOptions.indexOf(currentImage) + 1) % groundImageOptions.length;
+      groundMaps[currentMapIndex][col] = groundImageOptions[nextImageIndex];
+    } else {
+      // Toggle platform for other rows
+      togglePlatform(mouseX, mouseY);
+    }
+  });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'a') keys.a = true;
+      if (e.key === 'd') keys.d = true;
+      if (e.key === ' ' || e.key === 'w') keys.space = true;
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.key === 'a') keys.a = false;
+      if (e.key === 'd') keys.d = false;
+      if (e.key === ' ' || e.key === 'w') keys.space = false;
+    });
+
+    gameLoop();
+  </script>
+</body>
+</html>

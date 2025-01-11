@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movement III</title>
+    <style>
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background-color: #C6B198;
+            width: 800px; /* Maintain the same on-screen dimensions */
+            height: 600px;
+            cursor: pointer;
+            border-radius: 5px;
+      border: 2px solid black;
+        }
+        p { text-align: center; user-select: none;}
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <p>Click on a square to add or remove a rhythm.<br>Click on the "Play" button to play through the harmony.</p>
+    <a href="index.html">
+        <p>Back</p>
+    </a>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const rows = 4;
+        const cols = 8;
+        const squareSize = 96;
+        const padding = 12;
+
+        // Set canvas resolution to double the dimensions for higher pixel density
+        const canvasWidth = 800;
+        const canvasHeight = 600;
+        canvas.width = canvasWidth * 2;
+        canvas.height = canvasHeight * 2;
+        ctx.scale(2, 2); // Scale drawing operations to fit the doubled resolution
+
+        const gridWidth = cols * squareSize;
+        const gridHeight = rows * (squareSize + padding) - padding + squareSize + padding;
+
+        const offsetX = (canvasWidth - gridWidth) / 2;
+        const offsetY = (canvasHeight - gridHeight) / 2 + squareSize + padding;
+
+        const squares = [];
+
+        const images = [
+            new Image(),
+            new Image(),
+            new Image()
+        ];
+        images[0].src = 'image0.png'; // Replace with your "blank" image source
+        images[1].src = 'image1.png'; // Replace with your first image source
+        images[2].src = 'image2.png'; // Replace with your second image source
+
+        const alternateImages = [
+            new Image(),
+            new Image(),
+            new Image()
+        ];
+        alternateImages[0].src = 'image0a.png'; // Alternate blank image
+        alternateImages[1].src = 'image1a.png'; // Alternate first image
+        alternateImages[2].src = 'image2a.png'; // Alternate second image
+
+        const playStopImages = [
+            new Image(),
+            new Image()
+        ];
+        playStopImages[0].src = 'play.png'; // Replace with your "Play" image source
+        playStopImages[1].src = 'stop.png'; // Replace with your "Stop" image source
+
+        let playStopState = 1; // 0: Play, 1: Stop
+        let playStopTimer = null;
+        let currentCol = 0;
+        let lastCol = -1;
+
+        const playStopSquare = {
+            x: offsetX,
+            y: offsetY - squareSize - padding,
+            size: squareSize
+        };
+
+        for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+                squares.push({
+                    x: offsetX + col * squareSize,
+                    y: offsetY + row * (squareSize + padding),
+                    state: 0 // 0: blank, 1: image1, 2: image2
+                });
+            }
+        }
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            // Check if play/stop square is clicked
+            if (
+                mouseX > playStopSquare.x && mouseX < playStopSquare.x + playStopSquare.size &&
+                mouseY > playStopSquare.y && mouseY < playStopSquare.y + playStopSquare.size
+            ) {
+                playStopState = (playStopState + 1) % 2;
+                if (playStopState === 0) {
+                    currentCol = 0;
+                    playStopTimer = setInterval(() => {
+                        // Reset previous column to original images
+                        if (lastCol >= 0) {
+                            for (let row = 0; row < rows; row++) {
+                                const square = squares[row * cols + lastCol];
+                                square.state = square.state % 3; // Reset to original state
+                            }
+                        }
+
+                        // Update current column to alternate images
+                        for (let row = 0; row < rows; row++) {
+                            const square = squares[row * cols + currentCol];
+                            console.log(square.state === 0 ? 'image0a' : square.state === 1 ? 'image1a' : 'image2a');
+                            square.state = square.state + 3; // Use alternate images
+                        }
+
+                        lastCol = currentCol;
+                        currentCol = (currentCol + 1) % cols;
+                    }, 500);
+                } else {
+                    // Reset all squares to original images
+                    squares.forEach(square => {
+                        square.state = square.state % 3;
+                    });
+                    clearInterval(playStopTimer);
+                    playStopTimer = null;
+                }
+                return;
+            }
+
+            // Check if any grid square is clicked
+            squares.forEach(square => {
+                if (
+                    mouseX > square.x && mouseX < square.x + squareSize &&
+                    mouseY > square.y && mouseY < square.y + squareSize
+                ) {
+                    square.state = (square.state + 1) % 3;
+                }
+            });
+        });
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw play/stop square
+            ctx.strokeStyle = '#808080';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(playStopSquare.x, playStopSquare.y, playStopSquare.size, playStopSquare.size);
+            ctx.drawImage(
+                playStopImages[playStopState],
+                playStopSquare.x,
+                playStopSquare.y,
+                playStopSquare.size,
+                playStopSquare.size
+            );
+
+            // Draw grid squares
+            squares.forEach(square => {
+                const img = square.state < 3 ? images[square.state] : alternateImages[square.state - 3];
+                ctx.drawImage(img, square.x, square.y, squareSize, squareSize);
+                ctx.strokeStyle = '#808080';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(square.x, square.y, squareSize, squareSize);
+            });
+
+            requestAnimationFrame(draw);
+        }
+
+        draw();
+    </script>
+</body>
+</html>
